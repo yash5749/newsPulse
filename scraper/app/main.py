@@ -8,6 +8,7 @@ import sys
 
 from app.config import settings
 from app.database.connection import init_connection_pool, close_connection_pool
+from app.jobs.ingest import IngestionPipeline
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
@@ -26,14 +27,9 @@ def main() -> int:
         init_connection_pool()
         logger.info("Database connection pool initialized")
 
-        # TODO: Implement ingestion pipeline
-        # 1. Load sources from database
-        # 2. For each source: fetch RSS, normalize, extract, deduplicate
-        # 3. Persist articles
-        # 4. Recompute clusters
-        # 5. Update job status
+        pipeline = IngestionPipeline()
+        pipeline.run_ingestion()
 
-        logger.info("Ingestion pipeline not yet implemented")
         return 0
 
     except Exception as e:
