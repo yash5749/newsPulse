@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from typing import Optional, List
 from datetime import datetime
@@ -5,8 +6,14 @@ from uuid import UUID
 
 from app.database.models import Article, Source, NormalizedArticle, ExtractionStatus, IngestJob, JobStatus
 from app.database.connection import get_connection, get_cursor
+from app.normalization.url_canonicalizer import canonicalize_url
 
 logger = logging.getLogger(__name__)
+
+
+def compute_content_hash(title: str, summary: str, article_url: str) -> str:
+    content = f"{title}|{summary}|{article_url}"
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()[:32]
 
 
 def _row_to_source(row) -> Source:
@@ -50,9 +57,6 @@ class ArticleRepository:
             return [_row_to_source(row) for row in cur.fetchall()]
 
     def upsert_article(self, source_id: UUID, article: NormalizedArticle) -> tuple[Article, bool]:
-        from app.normalization.url_canonicalizer import canonicalize_url
-        from app.deduplication.deduplicator import compute_content_hash
-
         canonical_url = canonicalize_url(article.article_url)
         content_hash = compute_content_hash(article.title, article.summary, canonical_url)
         fetched_at = datetime.now()

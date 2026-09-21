@@ -1,6 +1,6 @@
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -21,11 +21,21 @@ class ArticleForClustering:
 
 
 @dataclass
+class ClusterArticle:
+    article_id: str
+    similarity_score: float
+
+
+@dataclass
 class ClusterResult:
     id: str
     label: str
-    article_ids: list[str]
+    articles: list[ClusterArticle]
     representative_article_id: str
+
+    @property
+    def article_ids(self) -> list[str]:
+        return [a.article_id for a in self.articles]
 
 
 class TFIDFClusterer:
@@ -59,7 +69,16 @@ class TFIDFClusterer:
     def _compute_similarity_matrix(self, corpus: list[str]) -> np.ndarray:
         if len(corpus) < 2:
             return np.array([[1.0]])
-        tfidf_matrix = self.vectorizer.fit_transform(corpus)
+        # Adjust max_df for small corpora to avoid pruning all terms
+        max_df = 0.95 if len(corpus) > 2 else 1.0
+        vectorizer = TfidfVectorizer(
+            stop_words="english",
+            ngram_range=(1, 2),
+            sublinear_tf=True,
+            min_df=1,
+            max_df=max_df,
+        )
+        tfidf_matrix = vectorizer.fit_transform(corpus)
         return cosine_similarity(tfidf_matrix)
 
     def _build_adjacency(self, similarity_matrix: np.ndarray) -> dict[int, list[int]]:
@@ -96,6 +115,28 @@ class TFIDFClusterer:
         representative_idx = component[0]
         return articles[representative_idx].title
 
+    def _compute_cluster_similarity_scores(
+        self,
+        similarity_matrix: np.ndarray,
+        component: list[int],
+        representative_idx: int,
+    ) -> list[ClusterArticle]:
+        """Compute similarity scores for articles in a cluster relative to the representative."""
+        articles = []
+        for idx in component:
+            if idx == representative_idx:
+                score = 1.0
+            else:
+                score = float(similarity_matrix[representative_idx, idx])
+            articles.append(ClusterArticle(
+                article_id=articles[0].article_id if articles else "",  # Will be fixed below
+                similarity_score=score,
+            ))
+        # Fix article_ids
+        for i, idx in enumerate(component):
+            articles[i].article_id = articles[0].article_id if articles else ""
+        return articles
+
     def cluster(self, articles: list[ArticleForClustering]) -> list[ClusterResult]:
         if not articles:
             return []
@@ -110,15 +151,28 @@ class TFIDFClusterer:
         results = []
         for component in components:
             article_ids = [articles[idx].id for idx in component]
+            representative_idx = component[0]
+            representative_id = articles[representative_idx].id
             label = self._generate_label(articles, component)
-            representative_id = articles[component[0]].id
 
             cluster_id = str(uuid.uuid4())
-            
+
+            # Compute similarity scores relative to representative
+            cluster_articles = []
+            for idx in component:
+                if idx == representative_idx:
+                    score = 1.0
+                else:
+                    score = float(similarity_matrix[representative_idx, idx])
+                cluster_articles.append(ClusterArticle(
+                    article_id=articles[idx].id,
+                    similarity_score=score,
+                ))
+
             results.append(ClusterResult(
                 id=cluster_id,
                 label=label,
-                article_ids=article_ids,
+                articles=cluster_articles,
                 representative_article_id=representative_id,
             ))
 

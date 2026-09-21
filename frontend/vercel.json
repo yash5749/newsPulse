@@ -28,11 +28,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://newspulse-api.onrender.com/api/:path*"
-    }
   ]
 }

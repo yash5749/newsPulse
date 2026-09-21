@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import type { ClusterDetail, Article } from '@/types/api';
+import type { ClusterDetail } from '@/types/api';
 
 interface ClusterDetailProps {
   cluster: ClusterDetail | null;
@@ -26,12 +26,6 @@ export function ClusterDetail({ cluster, onClose }: ClusterDetailProps) {
       return dateStr;
     }
   };
-
-  const articlesBySource = cluster.articles.reduce((acc, article) => {
-    if (!acc[article.source]) acc[article.source] = [];
-    acc[article.source].push(article);
-    return acc;
-  }, {} as Record<string, Article[]>);
 
   return (
     <div
@@ -75,8 +69,8 @@ export function ClusterDetail({ cluster, onClose }: ClusterDetailProps) {
             <div>
               <p className="text-zinc-500 dark:text-zinc-400">Intensity</p>
               <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                {(cluster as any).intensity
-                  ? Math.round((cluster as any).intensity * 100) + '%'
+                {cluster.intensity !== undefined
+                  ? Math.round(cluster.intensity * 100) + '%'
                   : 'N/A'}
               </p>
             </div>

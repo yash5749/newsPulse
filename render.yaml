@@ -1,7 +1,6 @@
-services:
+databases:
   # PostgreSQL Database
-  - type: pserv
-    name: newspulse-db
+  - name: newspulse-db
     region: oregon
     plan: free
     databaseName: newspulse
@@ -9,6 +8,7 @@ services:
     ipAllowList: []
     postgresMajorVersion: "16"
 
+services:
   # Node.js Backend API
   - type: web
     name: newspulse-api

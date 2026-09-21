@@ -4,13 +4,14 @@ from typing import Optional
 from urllib.parse import urlparse
 import logging
 import time
+from dateutil import parser as dateutil_parser
 
 from app.database.models import NormalizedArticle, ExtractionStatus
 
 logger = logging.getLogger(__name__)
 
 
-def parse_date(date_str: Optional[str], parsed_struct: Optional[time.struct_time] = None) -> Optional[datetime]:
+def parse_date(date_str: Optional[str], parsed_struct: Optional[time.struct_time] = None, fallback: Optional[datetime] = None) -> Optional[datetime]:
     if parsed_struct:
         try:
             dt = datetime(*parsed_struct[:6], tzinfo=timezone.utc)
@@ -19,15 +20,17 @@ def parse_date(date_str: Optional[str], parsed_struct: Optional[time.struct_time
             logger.warning(f"Failed to convert parsed_struct to datetime: {e}")
     
     if not date_str:
-        return None
+        return fallback
     try:
-        parsed = feedparser._parse_date(date_str)
-        if parsed:
-            dt = datetime(*parsed[:6], tzinfo=timezone.utc)
-            return dt
+        dt = dateutil_parser.parse(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt
     except Exception as e:
         logger.warning(f"Failed to parse date '{date_str}': {e}")
-    return None
+    return fallback
 
 
 def extract_external_id(entry: feedparser.FeedParserDict) -> Optional[str]:
@@ -71,9 +74,11 @@ def normalize_feed_entry(source_name: str, source_rss_url: str, entry: feedparse
     title = extract_title(entry)
     summary = extract_summary(entry)
     article_url = extract_article_url(entry)
+    fetch_time = datetime.now(timezone.utc)
     published_at = parse_date(
         entry.get('published') or entry.get('pubDate') or entry.get('updated'),
-        entry.get('published_parsed') or entry.get('updated_parsed')
+        entry.get('published_parsed') or entry.get('updated_parsed'),
+        fetch_time
     )
 
     if not article_url:

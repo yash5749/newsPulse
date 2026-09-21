@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from app.database.connection import get_cursor
-from app.clustering.clusterer import ClusterResult
+from app.clustering.clusterer import ClusterResult, ClusterArticle
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,11 @@ def persist_clusters(clusters: list[ClusterResult]) -> None:
         return
 
     with get_cursor() as cur:
+        # Delete existing clusters and their assignments in a single transaction
+        # This ensures we don't leave the database in an inconsistent state if clustering fails
+        cur.execute("DELETE FROM cluster_articles")
+        cur.execute("DELETE FROM clusters")
+
         for cluster in clusters:
             cluster_id = cluster.id
             label = cluster.label
@@ -25,22 +30,17 @@ def persist_clusters(clusters: list[ClusterResult]) -> None:
                 """
                 INSERT INTO clusters (id, label, representative_article_id, created_at, updated_at)
                 VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (id) DO UPDATE SET
-                    label = EXCLUDED.label,
-                    representative_article_id = EXCLUDED.representative_article_id,
-                    updated_at = EXCLUDED.updated_at
                 """,
                 (cluster_id, label, representative_article_id, now, now),
             )
 
-            for article_id in cluster.article_ids:
+            for cluster_article in cluster.articles:
                 cur.execute(
                     """
                     INSERT INTO cluster_articles (cluster_id, article_id, similarity_score)
                     VALUES (%s, %s, %s)
-                    ON CONFLICT (cluster_id, article_id) DO NOTHING
                     """,
-                    (cluster_id, article_id, 1.0),
+                    (cluster_id, cluster_article.article_id, cluster_article.similarity_score),
                 )
 
         logger.info(f"Persisted {len(clusters)} clusters with article assignments")

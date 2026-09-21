@@ -22,6 +22,7 @@ export interface Article {
 
 export interface ClusterDetail extends Cluster {
   articles: Article[];
+  intensity?: number;
 }
 
 export interface TimelineItem {

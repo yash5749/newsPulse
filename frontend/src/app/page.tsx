@@ -6,13 +6,12 @@ import { Timeline } from '@/components/Timeline';
 import { ClusterDetail } from '@/components/ClusterDetail';
 import { SourceFilter } from '@/components/SourceFilter';
 import { RefreshButton } from '@/components/RefreshButton';
-import type { TimelineItem, Source } from '@/types/api';
 
 export default function Home() {
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const { data: sources, loading: sourcesLoading, error: sourcesError } = useSources();
   const { data: timelineData, loading, error, refetch, selectedSources, toggleSource } = useTimeline();
-  const { data: clusterDetail, loading: clusterLoading, error: clusterError } = useClusterDetail(selectedClusterId);
+  const { data: clusterDetail } = useClusterDetail(selectedClusterId);
 
   const handleClusterClick = (clusterId: string) => {
     setSelectedClusterId(clusterId);
@@ -96,7 +95,7 @@ export default function Home() {
         {timelineData.length === 0 && !loading && !error && (
           <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
             <p className="text-lg">No clusters found</p>
-            <p className="mt-2">Try clicking "Refresh Data" to fetch the latest news</p>
+            <p className="mt-2">Try clicking &ldquo;Refresh Data&rdquo; to fetch the latest news</p>
           </div>
         )}
       </main>

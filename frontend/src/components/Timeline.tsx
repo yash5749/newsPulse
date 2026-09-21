@@ -12,19 +12,14 @@ interface TimelineProps {
 export function Timeline({ data, onClusterClick, selectedClusterId }: TimelineProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
-        <p>No clusters to display. Try adjusting your source filters.</p>
-      </div>
-    );
-  }
-
   const sortedData = useMemo(() => {
     return [...data].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }, [data]);
 
   const timeExtent = useMemo(() => {
+    if (data.length === 0) {
+      return { min: Date.now(), max: Date.now() + 86400000 };
+    }
     const times = data.flatMap((d) => [new Date(d.startTime).getTime(), new Date(d.endTime).getTime()]);
     return {
       min: Math.min(...times),
@@ -54,11 +49,24 @@ export function Timeline({ data, onClusterClick, selectedClusterId }: TimelinePr
   const maxDate = new Date(timeExtent.max);
   const dayCount = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
   const tickCount = Math.min(dayCount + 1, 7);
-  const ticks = Array.from({ length: tickCount }, (_, i) => {
-    const pos = i / (tickCount - 1);
-    const date = new Date(timeExtent.min + pos * timeRange);
-    return { pos: pos * 100, label: formatDate(date.toISOString()) };
-  });
+  const ticks = useMemo(() => {
+    if (data.length === 0) return [];
+    return Array.from({ length: tickCount }, (_, i) => {
+      const pos = i / (tickCount - 1);
+      const date = new Date(timeExtent.min + pos * timeRange);
+      return { pos: pos * 100, label: formatDate(date.toISOString()) };
+    });
+  }, [timeExtent, timeRange, tickCount, data.length]);
+
+  if (data.length === 0) {
+    return (
+      <div className="w-full" role="region" aria-label="News timeline">
+        <div className="flex items-center justify-center h-64 text-zinc-500 dark:text-zinc-400">
+          <p>No clusters to display. Try adjusting your source filters.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full" role="region" aria-label="News timeline">

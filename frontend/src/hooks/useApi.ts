@@ -10,22 +10,28 @@ export function useTimeline(initialSources?: string[]) {
   const [error, setError] = useState<string | null>(null);
   const [selectedSources, setSelectedSources] = useState<string[]>(initialSources || []);
 
-  const fetchTimeline = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const timeline = await api.getTimeline(selectedSources);
-      setData(timeline);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load timeline');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedSources]);
+  const fetchTimeline = useCallback(async (sources: string[]): Promise<TimelineItem[]> => {
+    const timeline = await api.getTimeline(sources);
+    return timeline;
+  }, []);
 
   useEffect(() => {
-    fetchTimeline();
-  }, [fetchTimeline]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const timeline = await fetchTimeline(selectedSources);
+        if (!cancelled) setData(timeline);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load timeline');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [fetchTimeline, selectedSources]);
 
   const toggleSource = useCallback((sourceName: string) => {
     setSelectedSources((prev) =>
@@ -39,7 +45,7 @@ export function useTimeline(initialSources?: string[]) {
     data,
     loading,
     error,
-    refetch: fetchTimeline,
+    refetch: () => fetchTimeline(selectedSources),
     selectedSources,
     toggleSource,
     setSelectedSources,
@@ -51,25 +57,31 @@ export function useClusterDetail(clusterId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCluster = useCallback(async (id: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const cluster = await api.getCluster(id);
-      setData(cluster);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load cluster');
-    } finally {
-      setLoading(false);
-    }
+  const fetchCluster = useCallback(async (id: string): Promise<ClusterDetail> => {
+    const cluster = await api.getCluster(id);
+    return cluster;
   }, []);
 
   useEffect(() => {
-    if (clusterId) {
-      fetchCluster(clusterId);
-    } else {
-      setData(null);
-    }
+    let cancelled = false;
+    const load = async () => {
+      if (clusterId) {
+        setLoading(true);
+        setError(null);
+        try {
+          const cluster = await fetchCluster(clusterId);
+          if (!cancelled) setData(cluster);
+        } catch (err) {
+          if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load cluster');
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      } else {
+        if (!cancelled) setData(null);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [clusterId, fetchCluster]);
 
   return { data, loading, error, refetch: fetchCluster };
@@ -81,18 +93,18 @@ export function useSources() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
     api.getSources()
       .then((sources) => {
-        if (mounted) setData(sources);
+        if (!cancelled) setData(sources);
       })
       .catch((err) => {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load sources');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load sources');
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
-    return () => { mounted = false; };
+    return () => { cancelled = true; };
   }, []);
 
   return { data, loading, error };

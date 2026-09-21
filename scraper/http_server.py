@@ -4,9 +4,10 @@ News Pulse Ingestion HTTP Service
 Provides a REST endpoint to trigger the ingestion pipeline.
 """
 import logging
+import os
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 import json
 import threading
 
@@ -84,7 +85,9 @@ class IngestionHandler(BaseHTTPRequestHandler):
         logger.info("%s - %s", self.address_string(), format % args)
 
 
-def run_server(port=8000):
+def run_server(port: int = None):
+    if port is None:
+        port = int(os.environ.get("PORT", "8000"))
     logger.info(f"Starting ingestion HTTP server on port {port}")
     server = HTTPServer(('0.0.0.0', port), IngestionHandler)
     try:
@@ -95,5 +98,5 @@ def run_server(port=8000):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else None
     run_server(port)

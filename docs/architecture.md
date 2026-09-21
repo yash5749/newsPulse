@@ -15,6 +15,7 @@ All services share a **PostgreSQL** database.
 ## Component Responsibilities
 
 ### Frontend (`/frontend`)
+
 - Renders timeline visualization
 - Cluster detail view (side panel/modal)
 - Source filter toggles
@@ -22,6 +23,7 @@ All services share a **PostgreSQL** database.
 - Responsive layout (desktop + mobile)
 
 ### Backend API (`/backend`)
+
 - **GET /clusters** — Cluster list with metadata
 - **GET /clusters/:id** — Single cluster with all articles
 - **GET /timeline** — Chart-ready timeline data (supports `?sources=` filter)
@@ -30,6 +32,7 @@ All services share a **PostgreSQL** database.
 - Validates requests, handles errors, enforces concurrent ingestion guard
 
 ### Python Ingestion (`/scraper/app/`)
+
 - **Feeds** — Fetch and parse RSS (feedparser)
 - **Normalization** — Unify inconsistent RSS fields (pubDate/published/updated, description/content/summary)
 - **Extraction** — Full article body via trafilatura → BeautifulSoup fallback
@@ -38,6 +41,7 @@ All services share a **PostgreSQL** database.
 - **Persistence** — Upsert articles, recompute clusters, record job status
 
 ### Database (PostgreSQL)
+
 Tables: `sources`, `articles`, `clusters`, `cluster_articles`, `ingest_jobs`
 
 ---
@@ -45,6 +49,7 @@ Tables: `sources`, `articles`, `clusters`, `cluster_articles`, `ingest_jobs`
 ## Request Flow
 
 ### Timeline Load
+
 ```
 User opens frontend
        │
@@ -62,6 +67,7 @@ Frontend renders timeline bars
 ```
 
 ### Cluster Detail
+
 ```
 User clicks cluster
        │
@@ -76,6 +82,7 @@ Frontend opens detail panel
 ```
 
 ### Refresh / Ingestion
+
 ```
 User clicks "Refresh Data"
        │
@@ -93,7 +100,7 @@ Python: UPDATE job status=running
        │
        ▼
 Python: For each source:
-        fetch RSS → normalize → extract → deduplicate/upsert
+         fetch RSS → normalize → extract → deduplicate/upsert
        │
        ▼
 Python: Load recent articles → recompute clusters → persist
@@ -123,62 +130,62 @@ On completed: GET /timeline → update UI
                           │ (configured RSS)│
                           └────────┬────────┘
                                    │
-                    ┌──────────────┼──────────────┐
-                    ▼              ▼              ▼
-              ┌─────────┐   ┌─────────┐   ┌─────────┐
-              │ Feed A  │   │ Feed B  │   │ Feed C  │
-              │ (BBC)   │   │ (NPR)   │   │ (Guard.)│
-              └────┬────┘   └────┬────┘   └────┬────┘
-                   │             │             │
-                   ▼             ▼             ▼
-         ┌──────────────────────────────────────────┐
-         │         NORMALIZATION                    │
-         │  • date → UTC timestamp                  │
-         │  • field mapping (pubDate/published/etc) │
-         │  • URL canonicalization                  │
-         └──────────────────┬───────────────────────┘
-                            │
-                            ▼
-         ┌──────────────────────────────────────────┐
-         │         ARTICLE EXTRACTION               │
-         │  1. trafilatura.extract(url)             │
-         │  2. fallback: BeautifulSoup              │
-         │  3. fallback: RSS summary                │
-         │  Status: SUCCESS / FALLBACK / FAILED     │
-         └──────────────────┬───────────────────────┘
-                            │
-                            ▼
-         ┌──────────────────────────────────────────┐
-         │         DEDUPLICATION                    │
-         │  1. source + external_id (primary)       │
-         │  2. source + canonical_url               │
-         │  3. normalized title + published_at      │
-         └──────────────────┬───────────────────────┘
-                            │
-                            ▼
-         ┌──────────────────────────────────────────┐
-         │         PERSIST ARTICLES                 │
-         │  UPSERT into articles table              │
-         │  Track inserted/updated counts           │
-         └──────────────────┬───────────────────────┘
-                            │
-                            ▼
-         ┌──────────────────────────────────────────┐
-         │         CLUSTERING                       │
-         │  • Load articles within time window      │
-         │  • TF-IDF vectorize (headline+summary)   │
-         │  • Cosine similarity matrix              │
-         │  • Threshold → graph edges               │
-         │  • Connected components = clusters       │
-         │  • Label from representative article     │
-         └──────────────────┬───────────────────────┘
-                            │
-                            ▼
-         ┌──────────────────────────────────────────┐
-         │         PERSIST CLUSTERS                 │
-         │  INSERT clusters + cluster_articles      │
-         │  UPDATE job: clusters_created            │
-         └──────────────────────────────────────────┘
+                     ┌─────────────┼─────────────┐
+                     ▼             ▼             ▼
+               ┌─────────┐   ┌─────────┐   ┌─────────┐
+               │ Feed A  │   │ Feed B  │   │ Feed C  │
+               │ (BBC)   │   │ (NPR)   │   │ (Guard.)│
+               └────┬────┘   └────┬────┘   └────┬────┘
+                    │             │             │
+                    ▼             ▼             ▼
+          ┌──────────────────────────────────────────┐
+          │         NORMALIZATION                    │
+          │  • date → UTC timestamp                  │
+          │  • field mapping (pubDate/published/etc) │
+          │  • URL canonicalization                  │
+          └──────────────────┬───────────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────────┐
+          │         ARTICLE EXTRACTION               │
+          │  1. trafilatura.extract(url)             │
+          │  2. fallback: BeautifulSoup              │
+          │  3. fallback: RSS summary                │
+          │  Status: SUCCESS / FALLBACK / FAILED     │
+          └──────────────────┬───────────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────────┐
+          │         DEDUPLICATION                    │
+          │  1. source + external_id (primary)       │
+          │  2. source + canonical_url               │
+          │  3. normalized title + published_at      │
+          └──────────────────┬───────────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────────┐
+          │         PERSIST ARTICLES                 │
+          │  UPSERT into articles table              │
+          │  Track inserted/updated counts           │
+          └──────────────────┬───────────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────────┐
+          │         CLUSTERING                       │
+          │  • Load articles within time window      │
+          │  • TF-IDF vectorize (headline+summary)   │
+          │  • Cosine similarity matrix              │
+          │  • Threshold → graph edges               │
+          │  • Connected components = clusters       │
+          │  • Label from representative article     │
+          └──────────────────┬───────────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────────┐
+          │         PERSIST CLUSTERS                 │
+          │  INSERT clusters + cluster_articles      │
+          │  UPDATE job: clusters_created            │
+          └──────────────────────────────────────────┘
 ```
 
 ---
@@ -192,11 +199,57 @@ clusters (1) ───< (N) cluster_articles
 ingest_jobs (standalone, tracks each run)
 ```
 
+### Table Details
+
+**sources**
+- id (UUID, PK)
+- name (VARCHAR, UNIQUE)
+- rss_url (TEXT, UNIQUE)
+- base_url (TEXT, nullable)
+- created_at (TIMESTAMPTZ)
+
+**articles**
+- id (UUID, PK)
+- source_id (UUID, FK → sources)
+- external_id (VARCHAR, nullable)
+- url (TEXT)
+- canonical_url (TEXT, nullable)
+- title (TEXT)
+- summary (TEXT, nullable)
+- body (TEXT, nullable)
+- published_at (TIMESTAMPTZ, nullable)
+- fetched_at (TIMESTAMPTZ)
+- extraction_status (ENUM: SUCCESS/FALLBACK/FAILED/PENDING)
+- content_hash (VARCHAR, nullable)
+- created_at, updated_at (TIMESTAMPTZ)
+
+**clusters**
+- id (UUID, PK)
+- label (TEXT)
+- representative_article_id (UUID, FK → articles, nullable)
+- created_at, updated_at (TIMESTAMPTZ)
+
+**cluster_articles**
+- cluster_id (UUID, FK → clusters)
+- article_id (UUID, FK → articles)
+- similarity_score (DOUBLE PRECISION)
+- PK (cluster_id, article_id)
+
+**ingest_jobs**
+- id (UUID, PK)
+- status (ENUM: queued/running/completed/failed)
+- started_at, completed_at (TIMESTAMPTZ, nullable)
+- articles_fetched, articles_inserted, articles_updated (INTEGER)
+- clusters_created (INTEGER)
+- error_message (TEXT, nullable)
+- created_at (TIMESTAMPTZ)
+
 ---
 
 ## Deployment Topology
 
 ### Local Development
+
 ```
 localhost:3000  →  Next.js (frontend)
 localhost:3001  →  Node API (backend)
@@ -205,6 +258,7 @@ localhost:8000  →  Python service (optional, can run as script)
 ```
 
 ### Production (Render + Vercel)
+
 ```
 Vercel (Next.js)
        │ HTTPS
@@ -217,6 +271,12 @@ Render (PostgreSQL)
        ▼
 Render (Python Web Service)  ← HTTP trigger from Node API
 ```
+
+### Render Blueprint (render.yaml)
+
+- **Database**: `databases:` section, Free plan, PostgreSQL 16
+- **Node API**: Web service, Node runtime, Free plan
+- **Python Service**: Web service, Docker runtime, Free plan
 
 ---
 

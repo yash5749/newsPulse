@@ -1,6 +1,6 @@
 # News Pulse — API Documentation
 
-Base URL: `http://localhost:3001` (local) / `https://api.newspulse.example.com` (prod)
+Base URL: `http://localhost:3001` (local) / `https://<your-api>.onrender.com` (prod)
 
 ---
 
@@ -9,11 +9,13 @@ Base URL: `http://localhost:3001` (local) / `https://api.newspulse.example.com` 
 List all clusters with summary metadata.
 
 ### Query Parameters
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `sources` | string | No | Comma-separated source names to filter (e.g., `BBC,NPR`) |
 
 ### Response 200
+
 ```json
 {
   "data": [
@@ -30,6 +32,7 @@ List all clusters with summary metadata.
 ```
 
 ### Fields
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string (UUID) | Cluster identifier |
@@ -46,15 +49,21 @@ List all clusters with summary metadata.
 Get a single cluster with all its articles.
 
 ### Path Parameters
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | string (UUID) | Yes | Cluster ID |
 
 ### Response 200
+
 ```json
 {
   "id": "uuid",
   "label": "Technology Regulation Bill Advances",
+  "articleCount": 5,
+  "startTime": "2026-09-18T10:00:00Z",
+  "endTime": "2026-09-20T14:30:00Z",
+  "sources": ["BBC", "NPR", "Guardian"],
   "representativeArticleId": "uuid",
   "createdAt": "2026-09-18T10:00:00Z",
   "updatedAt": "2026-09-20T14:30:00Z",
@@ -81,6 +90,7 @@ Get a single cluster with all its articles.
 ```
 
 ### Response 404
+
 ```json
 { "error": "Cluster not found" }
 ```
@@ -92,11 +102,13 @@ Get a single cluster with all its articles.
 Get timeline-ready data for visualization.
 
 ### Query Parameters
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `sources` | string | No | Comma-separated source names to filter (e.g., `BBC,NPR`) |
 
 ### Response 200
+
 ```json
 {
   "data": [
@@ -114,6 +126,7 @@ Get timeline-ready data for visualization.
 ```
 
 ### Fields
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `clusterId` | string (UUID) | Cluster identifier |
@@ -125,6 +138,7 @@ Get timeline-ready data for visualization.
 | `sources` | string[] | Source names in cluster |
 
 ### Source Filter Behavior
+
 When `sources` parameter provided:
 - Clusters with **zero** matching-source articles are excluded
 - `articleCount` = count of matching-source articles only
@@ -139,6 +153,7 @@ When `sources` parameter provided:
 Trigger an asynchronous ingestion job.
 
 ### Response 202 (Accepted)
+
 ```json
 {
   "jobId": "uuid",
@@ -147,6 +162,7 @@ Trigger an asynchronous ingestion job.
 ```
 
 ### Response 409 (Conflict)
+
 ```json
 {
   "error": "Ingestion already in progress",
@@ -157,6 +173,7 @@ Trigger an asynchronous ingestion job.
 Returned when an active job exists. Client should poll the existing job.
 
 ### Response 503
+
 ```json
 { "error": "Ingestion service unavailable" }
 ```
@@ -168,11 +185,13 @@ Returned when an active job exists. Client should poll the existing job.
 Get ingestion job status and progress.
 
 ### Path Parameters
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `jobId` | string (UUID) | Yes | Job ID from POST /ingest/trigger |
 
 ### Response 200
+
 ```json
 {
   "id": "uuid",
@@ -189,6 +208,7 @@ Get ingestion job status and progress.
 ```
 
 ### Status Values
+
 | Status | Description |
 |--------|-------------|
 | `queued` | Job created, not yet started |
@@ -197,8 +217,27 @@ Get ingestion job status and progress.
 | `failed` | Error occurred |
 
 ### Response 404
+
 ```json
 { "error": "Job not found" }
+```
+
+---
+
+## GET /sources
+
+List all configured RSS sources.
+
+### Response 200
+
+```json
+{
+  "data": [
+    { "id": "uuid", "name": "BBC" },
+    { "id": "uuid", "name": "NPR" },
+    { "id": "uuid", "name": "The Guardian" }
+  ]
+}
 ```
 
 ---
@@ -208,11 +247,13 @@ Get ingestion job status and progress.
 All endpoints may return:
 
 ### 400 Bad Request
+
 ```json
 { "error": "Invalid query parameter: sources" }
 ```
 
 ### 500 Internal Server Error
+
 ```json
 { "error": "Internal server error" }
 ```
@@ -223,6 +264,7 @@ No stack traces exposed.
 ## Frontend Usage Patterns
 
 ### Initial Load
+
 ```js
 // Load timeline
 const timeline = await fetch('/api/timeline').then(r => r.json())
@@ -232,12 +274,14 @@ const cluster = await fetch(`/api/clusters/${clusterId}`).then(r => r.json())
 ```
 
 ### Source Filter
+
 ```js
 // User toggles sources
 const filtered = await fetch(`/api/timeline?sources=${selected.join(',')}`).then(r => r.json())
 ```
 
 ### Refresh Flow
+
 ```js
 // 1. Trigger ingestion
 const { jobId } = await fetch('/api/ingest/trigger', { method: 'POST' }).then(r => r.json())

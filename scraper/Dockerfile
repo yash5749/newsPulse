@@ -16,9 +16,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK stopwords (needed for TF-IDF clustering)
-RUN python -c "import nltk; nltk.download('stopwords', quiet=True)"
-
 # Production stage
 FROM python:3.12-slim
 
@@ -43,7 +40,7 @@ COPY http_server.py .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
+# Expose port (Render uses PORT env var, default 8000)
 EXPOSE 8000
 
 # Health check
