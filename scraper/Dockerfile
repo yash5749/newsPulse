@@ -16,9 +16,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Download NLTK stopwords (needed for TF-IDF clustering)
-RUN python -c "import nltk; nltk.download('stopwords', quiet=True)"
-
 # Production stage
 FROM python:3.12-slim
 
