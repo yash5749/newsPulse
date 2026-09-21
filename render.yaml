@@ -42,7 +42,7 @@ services:
     region: oregon
     plan: free
     runtime: docker
-    dockerfilePath: Dockerfile
+    dockerfilePath: ./scraper/Dockerfile
     dockerContext: ./scraper
     healthCheckPath: /health
     envVars:
