@@ -16,6 +16,7 @@ TRACKING_PARAMS: Set[str] = {
     'cmpid', 'utm_source', 'utm_medium', 'utm_campaign',
     'newsletter', 'email_id', 'email_source', 'email_campaign',
     'cta', 'ctk', 'ck_subscriber_id', 'sr_share', 'emci', 'emdi',
+    'at_medium', 'at_campaign', 'at_source',
 }
 
 PARAMS_TO_KEEP_PREFIXES = ('id', 'article', 'post', 'slug', 'page')

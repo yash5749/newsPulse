@@ -21,6 +21,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global connection pool to avoid re-initializing on each request
+_connection_pool_initialized = False
+
 
 class IngestionHandler(BaseHTTPRequestHandler):
     def _set_headers(self, status_code=200):
@@ -57,15 +60,17 @@ class IngestionHandler(BaseHTTPRequestHandler):
             logger.info(f"Received ingestion trigger for job {job_id}")
 
             def run_pipeline():
+                global _connection_pool_initialized
                 try:
-                    init_connection_pool()
+                    if not _connection_pool_initialized:
+                        init_connection_pool()
+                        _connection_pool_initialized = True
                     pipeline = IngestionPipeline()
                     pipeline.run_ingestion(job_id)
                     logger.info(f"Ingestion completed for job {job_id}")
                 except Exception as e:
                     logger.exception(f"Ingestion failed for job {job_id}")
-                finally:
-                    close_connection_pool()
+                # Don't close pool here - keep it alive for subsequent requests
 
             thread = threading.Thread(target=run_pipeline)
             thread.daemon = True
@@ -95,6 +100,9 @@ def run_server(port: int = None):
     except KeyboardInterrupt:
         logger.info("Shutting down server")
         server.shutdown()
+    finally:
+        if _connection_pool_initialized:
+            close_connection_pool()
 
 
 if __name__ == "__main__":

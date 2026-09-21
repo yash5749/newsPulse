@@ -34,7 +34,7 @@ router.get('/clusters/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Cluster not found' });
     }
     const articles = await clusterRepository.getClusterArticles(clusterId);
-    res.json(mapClusterDetailToApi(cluster, articles));
+    res.json({ data: mapClusterDetailToApi(cluster, articles) });
   } catch (error) {
     console.error('Error fetching cluster:', error);
     res.status(500).json({ error: 'Failed to fetch cluster' });
@@ -61,12 +61,12 @@ router.get('/timeline', async (req: Request, res: Response) => {
 router.post('/ingest/trigger', async (req: Request, res: Response) => {
   try {
     const result = await ingestionService.triggerIngestion();
-    res.status(202).json(result);
+    res.status(202).json({ data: result });
   } catch (error) {
     if (error instanceof ingestionService.IngestionConflictError) {
       return res.status(409).json({
         error: 'Ingestion already in progress',
-        jobId: error.jobId,
+        id: error.jobId,
         status: error.status,
       });
     }
@@ -83,7 +83,7 @@ router.get('/ingest/status/:jobId', async (req: Request, res: Response) => {
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
-    res.json(mapIngestJobToApi(job));
+    res.json({ data: mapIngestJobToApi(job) });
   } catch (error) {
     console.error('Error fetching job status:', error);
     res.status(500).json({ error: 'Failed to fetch job status' });

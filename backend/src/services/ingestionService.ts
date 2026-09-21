@@ -10,7 +10,7 @@ export class IngestionConflictError extends Error {
   }
 }
 
-export async function triggerIngestion(): Promise<{ jobId: string; status: JobStatus }> {
+export async function triggerIngestion(): Promise<{ id: string; status: JobStatus }> {
   // Check for active job
   const activeJob = await ingestJobRepository.getActiveIngestJob();
   if (activeJob) {
@@ -26,7 +26,7 @@ export async function triggerIngestion(): Promise<{ jobId: string; status: JobSt
     console.error('Failed to trigger Python ingestion:', err);
   });
 
-  return { jobId: job.id, status: 'queued' };
+  return { id: job.id, status: 'queued' };
 }
 
 async function triggerPythonIngestion(jobId: string): Promise<void> {
