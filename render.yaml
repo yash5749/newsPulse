@@ -46,10 +46,32 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
+      # Primary: connectionString from managed database
       - key: DATABASE_URL
         fromDatabase:
           name: newspulse-db
           property: connectionString
+      # Fallback: individual properties (Render also provides these)
+      - key: DB_HOST
+        fromDatabase:
+          name: newspulse-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: newspulse-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: newspulse-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: newspulse-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: newspulse-db
+          property: password
       - key: CLUSTER_SIMILARITY_THRESHOLD
         value: "0.30"
       - key: CLUSTER_TIME_WINDOW_DAYS
@@ -64,5 +86,3 @@ services:
         value: "1"
       - key: SSL_CERT_FILE
         value: "/etc/ssl/certs/ca-certificates.crt"
-    # Free tier: spin down after 15 min inactivity, cold start ~30-60s
-    # For production, consider upgrading to Starter plan
