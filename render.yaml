@@ -15,7 +15,8 @@ services:
     region: oregon
     plan: free
     runtime: node
-    buildCommand: "cd backend && npm ci && npm run build"
+    buildCommand: "cd backend && npm ci --include=dev && npm run build"
+    initialDeployHook: "cd backend && npm run db:init:tsx"
     startCommand: "cd backend && npm run start"
     healthCheckPath: /health
     envVars:
