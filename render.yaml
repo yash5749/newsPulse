@@ -36,20 +36,42 @@ services:
       - key: CORS_ORIGIN
         value: "https://newspulse.vercel.app"
 
-  # Python Ingestion Service (native Python runtime - env vars injected properly)
+  # Python Ingestion Service
   - type: web
     name: newspulse-ingestion
     region: oregon
     plan: free
-    runtime: python
-    buildCommand: "cd scraper && pip install -r requirements.txt && python -c \"import nltk; nltk.download('stopwords', quiet=True)\""
-    startCommand: "cd scraper && python http_server.py"
+    runtime: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     envVars:
+      # Primary: connectionString from managed database
       - key: DATABASE_URL
         fromDatabase:
           name: newspulse-db
           property: connectionString
+      # Fallback: individual properties (Render also provides these)
+      - key: DB_HOST
+        fromDatabase:
+          name: newspulse-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: newspulse-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: newspulse-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: newspulse-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: newspulse-db
+          property: password
       - key: CLUSTER_SIMILARITY_THRESHOLD
         value: "0.30"
       - key: CLUSTER_TIME_WINDOW_DAYS
