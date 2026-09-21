@@ -43,7 +43,7 @@ services:
     plan: free
     runtime: docker
     dockerfilePath: Dockerfile
-    dockerContext: ./scraper
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
