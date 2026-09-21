@@ -1,0 +1,68 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: newspulse-db
+    region: oregon
+    plan: free
+    databaseName: newspulse
+    user: newspulse
+    ipAllowList: []
+    postgresMajorVersion: "16"
+
+  # Node.js Backend API
+  - type: web
+    name: newspulse-api
+    region: oregon
+    plan: free
+    runtime: node
+    buildCommand: "cd backend && npm ci && npm run build"
+    startCommand: "cd backend && npm run start"
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: newspulse-db
+          property: connectionString
+      - key: PYTHON_SERVICE_URL
+        value: https://newspulse-ingestion.onrender.com
+      - key: CLUSTER_SIMILARITY_THRESHOLD
+        value: "0.30"
+      - key: CLUSTER_TIME_WINDOW_DAYS
+        value: "7"
+      - key: CORS_ORIGIN
+        value: "https://newspulse.vercel.app"
+
+  # Python Ingestion Service
+  - type: web
+    name: newspulse-ingestion
+    region: oregon
+    plan: free
+    runtime: docker
+    dockerfilePath: ./scraper/Dockerfile
+    dockerContext: ./scraper
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: newspulse-db
+          property: connectionString
+      - key: CLUSTER_SIMILARITY_THRESHOLD
+        value: "0.30"
+      - key: CLUSTER_TIME_WINDOW_DAYS
+        value: "7"
+      - key: REQUEST_TIMEOUT
+        value: "30"
+      - key: USER_AGENT
+        value: "NewsPulse/1.0"
+      - key: LOG_LEVEL
+        value: "INFO"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: SSL_CERT_FILE
+        value: "/etc/ssl/certs/ca-certificates.crt"
+    # Free tier: spin down after 15 min inactivity, cold start ~30-60s
+    # For production, consider upgrading to Starter plan
