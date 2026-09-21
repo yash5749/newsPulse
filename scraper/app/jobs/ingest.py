@@ -22,9 +22,17 @@ class IngestionPipeline:
         self.article_repo = ArticleRepository(self.pool)
         self.job_repo = JobRepository(self.pool)
 
-    def run_ingestion(self) -> None:
-        job = self.job_repo.create_job()
-        logger.info(f"Created ingestion job: {job.id}")
+    def run_ingestion(self, job_id: str = None) -> None:
+        if job_id:
+            # Use existing job ID from Node.js backend
+            from uuid import UUID
+            job = self.job_repo.get_job(UUID(job_id))
+            if not job:
+                logger.warning(f"Job {job_id} not found, creating new job")
+                job = self.job_repo.create_job()
+        else:
+            job = self.job_repo.create_job()
+        logger.info(f"Using ingestion job: {job.id}")
 
         try:
             self.job_repo.update_job_running(job.id)

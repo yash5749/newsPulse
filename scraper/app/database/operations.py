@@ -131,7 +131,7 @@ class JobRepository:
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE ingest_jobs SET status = %s, started_at = NOW() WHERE id = %s",
-                    (JobStatus.RUNNING.value, job_id)
+                    (JobStatus.RUNNING.value, str(job_id))
                 )
 
     def complete_job(self, job_id: UUID, fetched: int, inserted: int, updated: int, clusters: int = 0, error: str = None):
@@ -143,14 +143,14 @@ class JobRepository:
                            articles_inserted = %s, articles_updated = %s, clusters_created = %s, error_message = %s
                        WHERE id = %s""",
                     (JobStatus.COMPLETED.value if not error else JobStatus.FAILED.value,
-                     fetched, inserted, updated, clusters, error, job_id)
+                     fetched, inserted, updated, clusters, error, str(job_id))
                 )
 
     def get_job(self, job_id: UUID) -> Optional[IngestJob]:
         with get_cursor() as cur:
             cur.execute(
                 "SELECT id, status, started_at, completed_at, articles_fetched, articles_inserted, articles_updated, clusters_created, error_message, created_at FROM ingest_jobs WHERE id = %s",
-                (job_id,)
+                (str(job_id),)
             )
             row = cur.fetchone()
             if row:

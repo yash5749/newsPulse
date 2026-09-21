@@ -59,8 +59,8 @@ class IngestionHandler(BaseHTTPRequestHandler):
                 try:
                     init_connection_pool()
                     pipeline = IngestionPipeline()
-                    result = pipeline.run_ingestion()
-                    logger.info(f"Ingestion completed for job {job_id}: {result}")
+                    pipeline.run_ingestion(job_id)
+                    logger.info(f"Ingestion completed for job {job_id}")
                 except Exception as e:
                     logger.exception(f"Ingestion failed for job {job_id}")
                 finally:
