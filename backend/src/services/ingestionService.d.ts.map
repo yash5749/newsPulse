@@ -1,0 +1,1 @@
+{"version":3,"file":"ingestionService.d.ts","sourceRoot":"","sources":["ingestionService.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,SAAS,EAAE,SAAS,EAAE,MAAM,mBAAmB,CAAC;AAKzD,wBAAsB,gBAAgB,IAAI,OAAO,CAAC;IAAE,KAAK,EAAE,MAAM,CAAC;IAAC,MAAM,EAAE,SAAS,CAAA;CAAE,CAAC,CAgBtF;AAiCD,wBAAsB,kBAAkB,CAAC,KAAK,EAAE,MAAM,GAAG,OAAO,CAAC,SAAS,GAAG,IAAI,CAAC,CAEjF"}
