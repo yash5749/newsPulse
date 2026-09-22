@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { TimelineItem, Source, ClusterDetail, IngestJob } from '@/types/api';
+import type { ClusterDetail, IngestJob, Source, TimelineItem } from '@/types/api';
 
-export function useTimeline(initialSources?: string[]) {
+export function useTimeline() {
   const [data, setData] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSources, setSelectedSources] = useState<string[]>(initialSources || []);
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  const fetchTimeline = useCallback(async (sources: string[]): Promise<TimelineItem[]> => {
-    const timeline = await api.getTimeline(sources);
-    return timeline;
-  }, []);
+  const fetchTimeline = useCallback(async (sources: string[]) => api.getTimeline(sources), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,33 +20,54 @@ export function useTimeline(initialSources?: string[]) {
       setError(null);
       try {
         const timeline = await fetchTimeline(selectedSources);
-        if (!cancelled) setData(timeline);
+        if (!cancelled) {
+          setData(timeline);
+          setHasLoadedOnce(true);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load timeline');
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [fetchTimeline, selectedSources]);
 
   const toggleSource = useCallback((sourceName: string) => {
     setSelectedSources((prev) =>
       prev.includes(sourceName)
-        ? prev.filter((s) => s !== sourceName)
-        : [...prev, sourceName]
+        ? prev.filter((source) => source !== sourceName)
+        : [...prev, sourceName],
     );
   }, []);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const timeline = await fetchTimeline(selectedSources);
+      setData(timeline);
+      setHasLoadedOnce(true);
+      return timeline;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to load timeline');
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchTimeline, selectedSources]);
 
   return {
     data,
     loading,
     error,
-    refetch: () => fetchTimeline(selectedSources),
+    refetch,
     selectedSources,
     toggleSource,
     setSelectedSources,
+    hasLoadedOnce,
   };
 }
 
@@ -57,34 +76,34 @@ export function useClusterDetail(clusterId: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCluster = useCallback(async (id: string): Promise<ClusterDetail> => {
-    const cluster = await api.getCluster(id);
-    return cluster;
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
-      if (clusterId) {
-        setLoading(true);
+      if (!clusterId) {
+        setData(null);
         setError(null);
-        try {
-          const cluster = await fetchCluster(clusterId);
-          if (!cancelled) setData(cluster);
-        } catch (err) {
-          if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load cluster');
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      } else {
-        if (!cancelled) setData(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const cluster = await api.getCluster(clusterId);
+        if (!cancelled) setData(cluster);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load story');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
-    load();
-    return () => { cancelled = true; };
-  }, [clusterId, fetchCluster]);
 
-  return { data, loading, error, refetch: fetchCluster };
+    void load();
+    return () => { cancelled = true; };
+  }, [clusterId]);
+
+  return { data, loading, error };
 }
 
 export function useSources() {
@@ -95,15 +114,9 @@ export function useSources() {
   useEffect(() => {
     let cancelled = false;
     api.getSources()
-      .then((sources) => {
-        if (!cancelled) setData(sources);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load sources');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .then((sources) => { if (!cancelled) setData(sources); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load sources'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -115,29 +128,18 @@ export function useIngest() {
   const [polling, setPolling] = useState(false);
 
   const triggerIngest = useCallback(async () => {
-    try {
-      const newJob = await api.triggerIngest();
-      setJob(newJob);
-      setPolling(true);
-      return newJob;
-    } catch (err) {
-      throw err instanceof Error ? err : new Error('Failed to trigger ingestion');
-    }
+    const newJob = await api.triggerIngest();
+    setJob(newJob);
+    setPolling(newJob.status === 'queued' || newJob.status === 'running');
+    return newJob;
   }, []);
 
   const pollStatus = useCallback(async (jobId: string) => {
-    try {
-      const status = await api.getIngestStatus(jobId);
-      setJob(status);
-      if (status.status === 'completed' || status.status === 'failed') {
-        setPolling(false);
-      }
-      return status;
-    } catch (err) {
-      setPolling(false);
-      throw err;
-    }
+    const status = await api.getIngestStatus(jobId);
+    setJob(status);
+    if (status.status === 'completed' || status.status === 'failed') setPolling(false);
+    return status;
   }, []);
 
-  return { job, polling, triggerIngest, pollStatus, setJob, setPolling };
+  return { job, polling, triggerIngest, pollStatus };
 }

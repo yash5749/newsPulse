@@ -15,14 +15,13 @@ export interface Cluster {
 export interface Article {
   id: string;
   title: string;
-  source: string;
+  sourceName: string;
   publishedAt: string;
   url: string;
 }
 
 export interface ClusterDetail extends Cluster {
   articles: Article[];
-  intensity?: number;
 }
 
 export interface TimelineItem {
@@ -50,8 +49,4 @@ export interface IngestJob {
 
 export interface ApiResponse<T> {
   data: T;
-}
-
-export interface ApiError {
-  error: string;
 }

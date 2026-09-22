@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIngest } from '@/hooks/useApi';
 
 interface RefreshButtonProps {
@@ -10,102 +10,64 @@ interface RefreshButtonProps {
 export function RefreshButton({ onRefreshComplete }: RefreshButtonProps) {
   const { job, polling, triggerIngest, pollStatus } = useIngest();
   const [error, setError] = useState<string | null>(null);
+  const onCompleteRef = useRef(onRefreshComplete);
+  const pollRef = useRef(pollStatus);
+  const completedJobRef = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => { onCompleteRef.current = onRefreshComplete; }, [onRefreshComplete]);
+  useEffect(() => { pollRef.current = pollStatus; }, [pollStatus]);
 
   useEffect(() => {
-    if (polling && job) {
-      const interval = setInterval(async () => {
-        try {
-          await pollStatus(job.id);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to poll status');
-        }
-      }, 2000);
+    if (!polling || !job?.id) return;
 
-      return () => clearInterval(interval);
-    }
-  }, [polling, job, pollStatus]);
+    const runPoll = async () => {
+      try {
+        await pollRef.current(job.id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to check refresh status.');
+      }
+    };
+
+    void runPoll();
+    timerRef.current = setInterval(() => void runPoll(), 2500);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [polling, job?.id]);
 
   useEffect(() => {
-    if (job?.status === 'completed') {
-      onRefreshComplete();
+    if (job?.status === 'completed' && job.id !== completedJobRef.current) {
+      completedJobRef.current = job.id;
+      onCompleteRef.current();
     }
-  }, [job, onRefreshComplete]);
+  }, [job?.id, job?.status]);
 
-  const handleRefresh = async () => {
+  const handleClick = useCallback(async () => {
+    if (polling) return;
     setError(null);
+    completedJobRef.current = null;
     try {
-      await triggerIngest();
+      const created = await triggerIngest();
+      if (created.status === 'failed') setError(created.errorMessage || 'Refresh failed to start.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start ingestion');
+      setError(err instanceof Error ? err.message : 'Unable to start refresh.');
     }
-  };
+  }, [polling, triggerIngest]);
 
-  const getStatusText = () => {
-    if (!job) return 'Refresh Data';
-    switch (job.status) {
-      case 'queued':
-        return 'Queued...';
-      case 'running':
-        return `Running... (${job.articlesFetched} fetched)`;
-      case 'completed':
-        return `Done (${job.articlesInserted} new)`;
-      case 'failed':
-        return 'Failed';
-      default:
-        return 'Refresh Data';
-    }
-  };
-
-  const getStatusColor = () => {
-    if (!job) return 'bg-blue-600 hover:bg-blue-700';
-    switch (job.status) {
-      case 'queued':
-      case 'running':
-        return 'bg-amber-600 hover:bg-amber-700';
-      case 'completed':
-        return 'bg-green-600 hover:bg-green-700';
-      case 'failed':
-        return 'bg-red-600 hover:bg-red-700';
-      default:
-        return 'bg-blue-600 hover:bg-blue-700';
-    }
-  };
-
-  const isDisabled = polling || job?.status === 'queued' || job?.status === 'running';
+  const busy = polling || job?.status === 'queued' || job?.status === 'running';
+  const completed = job?.status === 'completed';
+  const failed = job?.status === 'failed';
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        onClick={handleRefresh}
-        disabled={isDisabled}
-        className={`px-4 py-2 rounded-lg font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${getStatusColor()}`}
-        aria-busy={polling}
-        aria-live="polite"
-      >
-        {polling || job?.status === 'queued' || job?.status === 'running' ? (
-          <>
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            {getStatusText()}
-          </>
-        ) : (
-          'Refresh Data'
-        )}
+    <div className="refresh-area">
+      <button type="button" className={`refresh-button ${completed ? 'is-complete' : ''} ${busy ? 'is-busy' : ''}`} disabled={busy} onClick={handleClick} aria-busy={busy}>
+        {busy ? <span className="refresh-spinner" aria-hidden="true" /> : <span aria-hidden="true">{completed ? '✓' : '↻'}</span>}
+        {busy ? (job?.status === 'queued' ? 'Queued…' : 'Updating news…') : failed ? 'Retry refresh' : completed ? 'Updated just now' : 'Refresh data'}
       </button>
-
-      {error && (
-        <div className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {error}
-        </div>
-      )}
-
-      {job?.status === 'failed' && job.errorMessage && (
-        <div className="text-sm text-red-600 dark:text-red-400" role="alert">
-          Error: {job.errorMessage}
-        </div>
-      )}
+      {error && <div className="refresh-error" role="alert">{error}</div>}
     </div>
   );
 }
