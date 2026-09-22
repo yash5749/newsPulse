@@ -22,6 +22,11 @@ A news aggregation system that ingests RSS feeds, extracts full articles, cluste
                                      │   Service   │
                                      └─────────────┘
 ```
+### Live Urls
+   Frontend: [news-pulse-ten-nu.vercel.app](news-pulse-ten-nu.vercel.app)
+
+   Backend: [https://newspulse-api-ywps.onrender.com](https://newspulse-api-ywps.onrender.com)
+
 
 ### Components
 
